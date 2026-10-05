@@ -1,0 +1,7 @@
+langchain
+langchain-community
+langchain-anthropic
+langchain-chroma
+chromadb
+anthropic
+python-dotenv
