@@ -11,6 +11,9 @@ ANTHROPIC_API_KEY = os.environ["ANTHROPIC_API_KEY"]
 CHROMA_DB_DIR = "chroma_db"
 COLLECTION_NAME = "obsidian_vault"
 
+GENERATION_MODEL = "claude-haiku-4-5-20251001"
+TOP_K = 5
+
 # Regla de seguridad no negociable (ver CLAUDE.md del vault y
 # CHIEF/03-PROJECTS/rag-vault-obsidian.md): estas rutas NUNCA se indexan.
 EXCLUDED_DIR_NAMES = {
