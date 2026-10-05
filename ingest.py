@@ -91,7 +91,19 @@ def chunk_note(path: Path, vault_path: Path) -> list[Document]:
             if not sub.strip():
                 continue
             metadata = {**base_metadata, **chunk.metadata}
-            final_chunks.append(Document(page_content=sub, metadata=metadata))
+
+            # Contextual retrieval (simplificado): el título y los headers que
+            # MarkdownHeaderTextSplitter separó a metadata no quedan en el texto
+            # que se embede. Sin esto, una nota como "Tareas Diarias" (kanban de
+            # hábitos) puede perder frente a notas que solo HABLAN de "tareas
+            # diarias" como concepto, aunque el contenido real sea otro.
+            header_path = " > ".join(
+                v for k, v in chunk.metadata.items() if k.startswith("H") and v
+            )
+            context_prefix = title if not header_path else f"{title} — {header_path}"
+            contextualized = f"{context_prefix}\n\n{sub}"
+
+            final_chunks.append(Document(page_content=contextualized, metadata=metadata))
 
     return final_chunks
 
