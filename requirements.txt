@@ -5,3 +5,4 @@ langchain-chroma
 chromadb
 anthropic
 python-dotenv
+fastembed
