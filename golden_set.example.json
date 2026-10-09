@@ -1,0 +1,16 @@
+[
+  {
+    "id": "rag-concepto",
+    "query": "¿Qué es RAG y cómo funciona?",
+    "expected_sources_contains": ["Arquitectura RAG"],
+    "expected_keywords": ["retrieval", "generación", "contexto"],
+    "negative_control": false
+  },
+  {
+    "id": "control-negativo",
+    "query": "¿Cuál es la receta de mole de mi abuela?",
+    "expected_sources_contains": [],
+    "expected_keywords": [],
+    "negative_control": true
+  }
+]

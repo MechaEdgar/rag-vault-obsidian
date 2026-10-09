@@ -84,6 +84,19 @@ Este es el tipo de problema que no aparece hasta que se prueba con preguntas rea
 
 5 preguntas de dominios distintos sobre el vault real, incluyendo un control negativo (pregunta sin respuesta posible, para confirmar que el sistema no alucina). Las 5 pasaron — una de ellas falló en el primer intento (el bug de arriba), se diagnosticó y corrigió.
 
+## Evaluación continua y seguridad
+
+Lo anterior se validó manualmente la primera vez. Dos scripts lo convierten en algo que se puede volver a correr después de cualquier cambio, sin releer todo a ojo:
+
+**`eval_golden.py`** — golden dataset con las mismas 5 preguntas (y sus fuentes/respuestas esperadas), separado del código igual que `.env`/`.env.example`: `golden_set.example.json` (committeado, schema genérico) vs. `golden_set.json` (gitignored, datos reales). Chequea por pregunta si la fuente esperada aparece citada y si la respuesta contiene las keywords esperadas — una métrica básica (no mide calidad semántica), pero suficiente para detectar una regresión real antes de confiar en "se ve bien a simple vista".
+
+**`redteam.py`** — un mini red team contra el propio pipeline: 5 intentos de prompt injection (directo, override, roleplay, persuasión, obfuscado con leetspeak) para ver si el modelo revela su system prompt, más un test de *context swapping* que reemplaza el contexto recuperado por uno de un tema no relacionado para verificar que el modelo se niega en vez de alucinar con su propio conocimiento. Los 6 casos pasan hoy con Claude Haiku — ningún guardrail adicional de por medio, el modelo resistió por su propio alineamiento. Esto no significa que el pipeline sea invulnerable, solo que estos 6 vectores específicos no funcionan hoy contra este modelo — el valor real está en poder volver a correr el mismo set después de cualquier cambio (de modelo, de prompt) y comparar.
+
+También hay **input validation** básica en `rag.py` (`validate_query`): rechaza queries vacías o excesivamente largas antes de gastar una llamada a la API — un control determinista simple, no un guardrail de contenido.
+
+### HyDE — implementado, medido, desactivado por default
+`rag.py` soporta HyDE (generar una respuesta hipotética y embederla en vez de la pregunta cruda, para reducir la brecha lingüística pregunta↔nota — ver [[Transformación de Preguntas para RAG]]). Medido contra el golden set: **5/5 pasan con y sin HyDE** — ninguna mejora detectable en este corpus, y el control negativo metió un chunk de ruido adicional con HyDE activado. Como agrega una llamada extra al LLM por query (costo y latencia duplicados en la etapa de retrieval) sin beneficio medido, queda **desactivado por default** (`config.USE_HYDE = False`) — la decisión correcta dado que no se demostró el beneficio es no pagar el costo. Sigue disponible (`answer_question(..., use_hyde=True)`) si el vault crece y vale la pena remedir.
+
 ## Cómo correrlo
 
 ```bash
@@ -99,6 +112,10 @@ cp .env.example .env
 python ingest.py        # valida la ingesta y el filtro de exclusión
 python vectorstore.py   # construye el índice y corre unas queries de prueba
 python rag.py           # chat interactivo
+
+cp golden_set.example.json golden_set.json  # editar con tus propias preguntas/respuestas
+python eval_golden.py   # corre el golden set y reporta pass/fail
+python redteam.py       # corre el mini red team (prompt injection + context swapping)
 ```
 
 **Requisito:** una API key de Anthropic (console.anthropic.com) con saldo — el embedding es gratis/local, solo la generación consume la API.
@@ -107,7 +124,7 @@ python rag.py           # chat interactivo
 
 - Sin re-ranking ni búsqueda híbrida (keyword + vectorial) — RAG "naive". El fix de contextual retrieval ayuda, pero un re-ranker mejoraría más la precisión en corpus más grandes.
 - Sin filtro de relevancia por score antes de pasar contexto al LLM — depende del prompt para decir "no sé", no hay un umbral duro.
-- Sin evaluación automatizada (el pipeline de 5 preguntas fue manual) — el siguiente paso natural es un pequeño eval set versionado.
+- El red team cubre 6 vectores conocidos (prompt injection básico + context swapping) — no es exhaustivo; no incluye, por ejemplo, retrieval poisoning ni ataques multi-turno.
 - Ratio de ~7.6 chunks por nota es alto para notas cortas; fusionar secciones muy pequeñas podría mejorar la señal.
 
 ## Stack
